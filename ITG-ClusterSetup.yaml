@@ -387,6 +387,11 @@ metadata:
   labels:
     app: nginx-ingress
 spec:
+  defaultBackend:
+    service:
+      name: nginx-service
+      port:
+        number: 80
   rules:
     - http:
         paths:
@@ -404,11 +409,11 @@ spec:
                 name: nginx-static-contents
                 port:
                   number: 80
-          - path: /contents
+          - path: /static2
             pathType: ImplementationSpecific
             backend:
               service:
-                name: nginx-service
+                name: nginx-static-contents
                 port:
                   number: 80   
           - path: /static
