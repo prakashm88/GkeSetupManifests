@@ -1,0 +1,87 @@
+# Nginx Service for UI Code deployment
+
+---
+#Config Map for UI Nginx code     
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-index-html-configmap
+  namespace: default
+data:
+  index.html: |
+    <html>
+    <h1>Welcome To OIT.In</h1>
+    </br>
+    <h1>Hi! You are Trying to Access Webapp Through GKE Ingress </h1>
+    </html>
+  app.html: |
+    <html>
+    <h1>App Index</h1>
+    </br>
+    <h1>Nothing to see here !</h1>
+    </html>    
+  home.html: |
+    <html>
+    <h1>Home Index</h1>
+    </br>
+    <h1>Nothing to see here !</h1>
+    </html>     
+
+---    
+# Nginx service Deployment     
+--- 
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-static-contents
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 2 
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /index.html
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        volumeMounts:
+            - name: nginx-public
+              mountPath: /usr/share/nginx/html/
+      volumes:
+      - name: nginx-public
+        configMap:
+          name: nginx-index-html-configmap
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-static-contents
+  namespace: default  
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+            
+   

@@ -51,6 +51,26 @@ spec:
             name: itg-gke-sbt-app-configmap
 
 ---
+# Backend config for the sb app 
+---
+
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: itg-gke-sbt-app-bc
+  namespace: default
+spec:
+  healthCheck:
+    checkIntervalSec: 30
+    timeoutSec: 5
+    healthyThreshold: 1
+    unhealthyThreshold: 2
+    type: HTTP
+    requestPath: /sbtapp/actuator/health
+    port: 8899
+
+
+---
 # SpringBoot itg-gke-sbt-app service
 ---        
 
@@ -59,6 +79,9 @@ kind: Service
 metadata:
   name: itg-gke-sbt-app
   namespace: default
+  annotations:
+    cloud.google.com/backend-config: '{"ports": {"8899":"itg-gke-sbt-app-bc"}}'
+    cloud.google.com/neg: '{"ingress": true}'  
 spec:
   selector:
     app: itg-gke-sbt-app
@@ -66,31 +89,4 @@ spec:
     - port: 8899
       targetPort: 8899
       
-      
-      
-
----
-# Ingress Controller config for GKE
----
-
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: path-testing-ingress-v2
-  annotations:
-    kubernetes.io/ingress.global-static-ip-name: lb-ingress-v2   
-  labels:
-    app: path-testing-ingress
-spec:
-#  ingressClassName: nginx
-  rules:
-    - http:
-        paths:
-          - path: /sbtapp/*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: itg-gke-sbt-app
-                port:
-                  number: 8899
-                        
+       
