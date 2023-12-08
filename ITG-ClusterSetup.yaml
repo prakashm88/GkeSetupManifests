@@ -280,6 +280,7 @@ spec:
   ports:
     - port: 8899
       targetPort: 8899
+      
 
 ---
 # SpringBoot Green app
@@ -326,6 +327,52 @@ spec:
     - port: 8899
       targetPort: 8899
 
+
+---
+# SpringBoot Blue app with a context path
+---    
+    
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itg-sb-with-ctx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: itg-sb-with-ctx
+  template:
+    metadata:
+      labels:
+        app: itg-sb-with-ctx
+    spec:
+      containers:
+        - name: itg-sb-blue-app
+          image: asia-south1-docker.pkg.dev/sigma-zodiac-400712/itg-docker-repo/sbtapp-rx:latest
+          ports:
+          - containerPort: 8899
+          volumeMounts:
+          - name: itg-config-volume
+            mountPath: /config
+      volumes:
+        - name: itg-config-volume
+          configMap:
+            name: itg-sb-blue-app-configmap
+
+---        
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: itg-sb-with-ctx
+  namespace: default
+spec:
+  selector:
+    app: itg-sb-with-ctx
+  ports:
+    - port: 8899
+      targetPort: 8899
+      
 ---
 # httpbin deployment
 ---
@@ -389,7 +436,7 @@ metadata:
 spec:
   defaultBackend:
     service:
-      name: nginx-service
+      name: nginx-static-contents
       port:
         number: 80
   rules:
@@ -409,11 +456,11 @@ spec:
                 name: nginx-static-contents
                 port:
                   number: 80
-          - path: /static2
+          - path: /contents
             pathType: ImplementationSpecific
             backend:
               service:
-                name: nginx-static-contents
+                name: nginx-service
                 port:
                   number: 80   
           - path: /static
@@ -451,3 +498,17 @@ spec:
                 name: itg-sb-green-app
                 port:
                   number: 8899                           
+          - path: "/sbapp(/|$)(.*)"
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: itg-sb-green-app
+                port:
+                  number: 8899
+          - path: /sbtapp
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: itg-sb-with-ctx
+                port:
+                  number: 8899            
