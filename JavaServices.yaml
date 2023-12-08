@@ -1,0 +1,158 @@
+---
+#Config Map for JavaService   
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: itg-sb-blue-app-configmap
+  namespace: default
+data:
+  application.yml: |
+    spring:
+      profile: 
+        active: blue
+    common:
+      property1: value1
+      property2: value2
+      property3: value3
+      
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: itg-sb-green-app-configmap
+  namespace: default
+data:
+  application.yml: |
+    spring:
+      profile: 
+        active: green
+    common:
+      property1: value1
+      property2: value2
+      property3: value3
+
+
+---
+# SpringBoot Blue app
+---    
+    
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itg-sb-blue-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: itg-sb-blue-app
+  template:
+    metadata:
+      labels:
+        app: itg-sb-blue-app
+    spec:
+      containers:
+        - name: itg-sb-blue-app
+          image: asia-south1-docker.pkg.dev/sigma-zodiac-400712/itg-docker-repo/sb-rx-app:latest
+          ports:
+          - containerPort: 8899          
+          volumeMounts:
+          - name: itg-config-volume
+            mountPath: /config
+      volumes:
+        - name: itg-config-volume
+          configMap:
+            name: itg-sb-blue-app-configmap
+
+
+---
+# SpringBoot Green app
+---    
+    
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itg-sb-green-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: itg-sb-green-app
+  template:
+    metadata:
+      labels:
+        app: itg-sb-green-app
+    spec:
+      containers:
+        - name: itg-sb-green-app
+          image: asia-south1-docker.pkg.dev/sigma-zodiac-400712/itg-docker-repo/sb-rx-app:latest
+          ports:
+          - containerPort: 8899          
+          volumeMounts:
+          - name: itg-config-volume
+            mountPath: /config
+      volumes:
+        - name: itg-config-volume
+          configMap:
+            name: itg-sb-green-app-configmap
+        
+
+---
+# Ingress Controller config for GKE
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: lb-ingress
+  labels:
+    app: nginx-ingress
+spec:
+  defaultBackend:
+    service:
+      name: nginx
+      port:
+        number: 8080
+  rules:
+    - http:
+        paths:
+          - path: /ui/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: nginx-service
+                port:
+                  number: 80
+          - path: /api/hello
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: helloweb
+                port:
+                  number: 8080           
+          - path: /api/hellov2
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: helloweb-v2
+                port:
+                  number: 8080  
+          - path: /api/blue/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: itg-sb-blue-app
+                port:
+                  number: 8899 
+          - path: /api/green/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: itg-sb-green-app
+                port:
+                  number: 8899                   
+                  

@@ -1,0 +1,78 @@
+
+---
+# Hello App Service for validation
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helloweb-v2
+  labels:
+    app: hello-v2
+spec:
+  selector:
+    matchLabels:
+      app: hello-v2
+      tier: web
+  template:
+    metadata:
+      labels:
+        app: hello-v2
+        tier: web
+    spec:
+      containers:
+      - name: hello-app
+        image: us-docker.pkg.dev/google-samples/containers/gke/hello-app:1.0
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 200m
+            
+
+---
+# Ingress Controller config for GKE
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: lb-ingress
+  labels:
+    app: nginx-ingress
+spec:
+  defaultBackend:
+    service:
+      name: nginx
+      port:
+        number: 8080
+  rules:
+    - http:
+        paths:
+          - path: /ui/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: nginx-service
+                port:
+                  number: 80
+          - path: /api/hello
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: helloweb
+                port:
+                  number: 8080           
+          - path: /api/hellov2
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: helloweb-v2
+                port:
+                  number: 8080                          
+
+
+---
+            

@@ -1,0 +1,448 @@
+# Nginx Service for UI Code deployment
+
+---
+#Config Map for UI Nginx code     
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-index-html-configmap
+  namespace: default
+data:
+  index.html: |
+    <html>
+    <h1>Welcome To OIT.In</h1>
+    </br>
+    <h1>Hi! You are Trying to Access Webapp Through GKE Ingress </h1>
+    </html>
+  404.html: |
+    <html>
+    <h1>404n</h1>
+    </br>
+    <h1>Nothing to see here !</h1>
+    </html>    
+  app.html: |
+    <html>
+    <h1>App here</h1>
+    </br>
+    <h1>Nothing to see here yet !</h1>
+    </html>    
+    
+---    
+# Nginx Service 
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: default
+spec:
+  selector:
+    app: nginx
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 80    
+    
+---    
+# Nginx service Deployment     
+--- 
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-static-contents
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 2 
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /index.html
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        volumeMounts:
+            - name: nginx-public
+              mountPath: /usr/share/nginx/html/
+      volumes:
+      - name: nginx-public
+        configMap:
+          name: nginx-index-html-configmap
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-static-contents
+  namespace: default  
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+            
+
+---
+# Hello App Service for validation
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helloweb
+  namespace: default  
+  labels:
+    app: hello
+spec:
+  selector:
+    matchLabels:
+      app: hello
+      tier: web
+  template:
+    metadata:
+      labels:
+        app: hello
+        tier: web
+    spec:
+      containers:
+      - name: hello-app
+        image: us-docker.pkg.dev/google-samples/containers/gke/hello-app:1.0
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 200m
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: helloweb
+  namespace: default  
+spec:
+  selector:
+    app: hello  # Corrected to match the labels in the corresponding Deployment
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP      
+            
+
+---
+# Hello App Service for validation v2
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helloweb-v2
+  namespace: default
+  labels:
+    app: hello
+spec:
+  selector:
+    matchLabels:
+      app: hello
+      tier: web
+  template:
+    metadata:
+      labels:
+        app: hello
+        tier: web
+    spec:
+      containers:
+      - name: hello-app
+        image: us-docker.pkg.dev/google-samples/containers/gke/hello-app:1.0
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 200m
+         
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: helloweb-v2
+  namespace: default  
+spec:
+  selector:
+    app: hello  # Corrected to match the labels in the corresponding Deployment
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+
+         
+---
+#Config Map for JavaService   
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: itg-sb-blue-app-configmap
+  namespace: default
+data:
+  application.yml: |
+    spring:
+      profile: 
+        active: blue
+    common:
+      property1: value1
+      property2: value2
+      property3: value3
+      
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: itg-sb-green-app-configmap
+  namespace: default
+data:
+  application.yml: |
+    spring:
+      profile: 
+        active: green
+    common:
+      property1: value1
+      property2: value2
+      property3: value3
+
+
+---
+# SpringBoot Blue app
+---    
+    
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itg-sb-blue-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: itg-sb-blue-app
+  template:
+    metadata:
+      labels:
+        app: itg-sb-blue-app
+    spec:
+      containers:
+        - name: itg-sb-blue-app
+          image: asia-south1-docker.pkg.dev/sigma-zodiac-400712/itg-docker-repo/sb-rx-app:latest
+          ports:
+          - containerPort: 8899          
+          volumeMounts:
+          - name: itg-config-volume
+            mountPath: /config
+      volumes:
+        - name: itg-config-volume
+          configMap:
+            name: itg-sb-blue-app-configmap
+
+---        
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: itg-sb-blue-app
+  namespace: default
+spec:
+  selector:
+    app: itg-sb-blue-app
+  ports:
+    - port: 8899
+      targetPort: 8899
+
+---
+# SpringBoot Green app
+---    
+    
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itg-sb-green-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: itg-sb-green-app
+  template:
+    metadata:
+      labels:
+        app: itg-sb-green-app
+    spec:
+      containers:
+        - name: itg-sb-green-app
+          image: asia-south1-docker.pkg.dev/sigma-zodiac-400712/itg-docker-repo/sb-rx-app:latest
+          ports:
+          - containerPort: 8899          
+          volumeMounts:
+          - name: itg-config-volume
+            mountPath: /config
+      volumes:
+        - name: itg-config-volume
+          configMap:
+            name: itg-sb-green-app-configmap
+
+---        
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: itg-sb-green-app
+  namespace: default
+spec:
+  selector:
+    app: itg-sb-green-app
+  ports:
+    - port: 8899
+      targetPort: 8899
+
+---
+# httpbin deployment
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: default  
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+  template:
+    metadata:
+      labels:
+        app: httpbin
+    spec:
+      containers:
+      - name: httpbin
+        image: kennethreitz/httpbin
+        ports:
+        - containerPort: 80
+
+---
+# httpbin service
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  namespace: default  
+spec:
+  selector:
+    app: httpbin
+  ports:
+    - protocol: TCP
+      port: 80
+
+
+---
+# Ingress Controller config for GKE
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: public-lb-v1
+    #nginx.ingress.kubernetes.io/auth-url: "http://httpbin.default.svc.cluster.local/anything" # Always returns 200 OK
+    #nginx.ingress.kubernetes.io/auth-snippet: |
+    #  proxy_set_header X-Auth-User-Opa "$http_x_auth_user_opa";
+    #  error_page 418 = @log;
+    #  return 418;
+    #nginx.ingress.kubernetes.io/auth-http-method: POST    
+  labels:
+    app: nginx-ingress
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /opa-mock
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: httpbin
+                port:
+                  number: 80
+          - path: /ui/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: nginx-static-contents
+                port:
+                  number: 80
+          - path: /contents
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: nginx-service
+                port:
+                  number: 80   
+          - path: /static
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: nginx-static-contents
+                port:
+                  number: 80                  
+          - path: /api/hello
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: helloweb
+                port:
+                  number: 8080           
+          - path: /api/hellov2
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: helloweb-v2
+                port:
+                  number: 8080  
+          - path: /api/blue/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: itg-sb-blue-app
+                port:
+                  number: 8899 
+          - path: /api/green/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: itg-sb-green-app
+                port:
+                  number: 8899                           
