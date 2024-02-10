@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: oauth2-proxy
+  name: oauth2-proxy
+  namespace: ingress-nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        k8s-app: oauth2-proxy
+    spec:
+      containers:
+        - args:
+            - --provider=github
+            - --email-domain=*
+            #- --oidc-issuer-url=https://gitlab.com
+            - --upstream=file:///dev/null
+            - --http-address=0.0.0.0:4180
+            - --redirect-url=https://api.0it.in/secure/app/gitlab
+          # Register a new application
+          # https://github.com/settings/applications/new
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              value: 8e82bb7dc209a9031fa6
+              #value: 9b06c5a84c7e071fa3f29c4a708d6b7e5e629ffe5ed71cf725847d1e21a7dec4
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              value: 24e70e8963eb675f172f260436c6d0189ccbbb63
+              #value: gloas-bdda9f81510dbcb8bf73509504afe4a7e5d43e6eb0a914ce2e035fcc09645691
+            # docker run -ti --rm python:3-alpine python -c 'import secrets,base64; print(base64.b64encode(base64.b64encode(secrets.token_bytes(16))));'
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              value: UzQrZTR6MWxmZVJkZ0pIaHpHZTFSUT09
+          image: quay.io/oauth2-proxy/oauth2-proxy:latest
+          imagePullPolicy: Always
+          name: oauth2-proxy
+          ports:
+            - containerPort: 4180
+              protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    k8s-app: oauth2-proxy
+  name: oauth2-proxy
+  namespace: ingress-nginx
+spec:
+  ports:
+    - name: http
+      port: 4180
+      protocol: TCP
+      targetPort: 4180
+  selector:
+    k8s-app: oauth2-proxy

@@ -6,7 +6,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: itg-gke-sbt-app-configmap
-  namespace: default
+#  namespace: default
 data:
   application.yml: |
     spring:
@@ -58,7 +58,7 @@ apiVersion: cloud.google.com/v1
 kind: BackendConfig
 metadata:
   name: itg-gke-sbt-app-bc
-  namespace: default
+#  namespace: default
 spec:
   healthCheck:
     checkIntervalSec: 30
@@ -78,10 +78,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: itg-gke-sbt-app
-  namespace: default
+#  namespace: default
   annotations:
     cloud.google.com/backend-config: '{"ports": {"8899":"itg-gke-sbt-app-bc"}}'
-    cloud.google.com/neg: '{"ingress": true}'  
+    cloud.google.com/neg: '{"ingress": true}'
 spec:
   selector:
     app: itg-gke-sbt-app
