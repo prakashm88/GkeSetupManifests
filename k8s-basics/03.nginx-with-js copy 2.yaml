@@ -1,0 +1,95 @@
+# Nginx Service for UI Code deployment
+---
+#Config Map for Nginx JS Module config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-jsmodule-configmap
+  namespace: k8basics
+data:
+  module.js: |
+
+---
+#Config Map for Nginx Config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-configxml-configmap
+  namespace: k8basics
+data:
+  nginx.conf: |
+    user nginx;
+    worker_processes  1;
+    events {
+      worker_connections  10240;
+    }
+    http {
+      server {
+          listen       80;
+          server_name  localhost;
+          location / {
+            root   /usr/share/nginx/html; #Change this line
+            index  index.html index.htm;
+        }
+      }
+    }
+
+---
+# Nginx service Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-static-contents-js
+  namespace: k8basics
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              scheme: HTTP
+              path: /index.html
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - name: nginx-configxml
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+      volumes:
+        - name: nginx-configxml
+          configMap:
+            name: nginx-configxml-configmap
+            items:
+              - key: nginx.conf
+                path: nginx.conf
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-static-contents-js
+  namespace: k8basics
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8081
+  type: LoadBalancer

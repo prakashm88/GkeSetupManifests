@@ -1,0 +1,56 @@
+---
+# Ingress Controller config for GKE
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-0it-v1
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: lb-ingress-0it-v1
+    #nginx.ingress.kubernetes.io/auth-url: "http://httpbin.default.svc.cluster.local/anything" # Always returns 200 OK
+    #nginx.ingress.kubernetes.io/auth-snippet: |
+    #  proxy_set_header X-Auth-User-Opa "$http_x_auth_user_opa";
+    #  error_page 418 = @log;
+    #  return 418;
+    #nginx.ingress.kubernetes.io/auth-http-method: POST
+  labels:
+    app: ingress-0it-v1
+spec:
+  ingressClassName: nginx
+  defaultBackend:
+    service:
+      name: nginx-static-contents
+      port:
+        number: 80
+  rules:
+    - http:
+        paths:
+          - path: /anything
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: httpbin
+                port:
+                  number: 80    
+          - path: /anything/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: httpbin
+                port:
+                  number: 80
+          - path: /sbtapp
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: itg-gke-sbt-app
+                port:
+                  number: 8899    
+          - path: /sbtapp/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: itg-gke-sbt-app
+                port:
+                  number: 8899            

@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spekt8
+  namespace: k8basics
+spec:
+  selector:
+    matchLabels:
+      component: spekt8
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        component: spekt8
+    spec:
+      containers:
+        - name: spekt8
+          image: elliotxkim/spekt8
+          ports:
+            - containerPort: 3000
+
+# NOTE: The service account `default:default` already exists in k8s cluster.
+# You can create a new account following like this:
+#---
+#apiVersion: v1
+#kind: ServiceAccount
+#metadata:
+#  name: <new-account-name>
+#  namespace: <namespace>
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fabric8-rbac
+subjects:
+  - kind: ServiceAccount
+    # Reference to upper's `metadata.name`
+    name: default
+    # Reference to upper's `metadata.namespace`
+    namespace: k8basics
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io

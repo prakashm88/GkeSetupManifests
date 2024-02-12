@@ -1,0 +1,289 @@
+---
+# httpbin deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: k8basics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+  template:
+    metadata:
+      labels:
+        app: httpbin
+    spec:
+      containers:
+        - name: httpbin
+          image: kennethreitz/httpbin
+          ports:
+            - containerPort: 3381
+
+---
+# httpbin service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  namespace: k8basics
+  labels:
+    app: httpbin
+spec:
+  selector:
+    app: httpbin
+  ports:
+    - protocol: TCP
+      port: 3381
+
+---
+# blue pod
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: blue-app
+  namespace: k8basics
+  labels:
+    app: blue
+spec:
+  containers:
+    - name: blue-app
+      image: hashicorp/http-echo
+      args:
+        - "-text=blue"
+
+---
+# blue pod
+---
+kind: Service
+apiVersion: v1
+metadata:
+  namespace: k8basics
+  name: blue-service
+  labels:
+    app: blue-service
+spec:
+  selector:
+    app: blue
+  ports:
+    - port: 3382 # Default port for image
+
+---
+# green pod
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  namespace: k8basics
+  name: green-app
+  labels:
+    app: green
+spec:
+  containers:
+    - name: green-app
+      image: hashicorp/http-echo
+      args:
+        - "-text=green"
+
+---
+# green service
+---
+kind: Service
+apiVersion: v1
+metadata:
+  namespace: k8basics
+  name: green-service
+  labels:
+    app: blue-service
+spec:
+  selector:
+    app: green
+  ports:
+    - port: 3383 # Default port for image
+
+---
+# Nginx Service for UI Code deployment
+---
+#Config Map for Nginx JS Module config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-jsmodule-configmap
+  namespace: k8basics
+data:
+  scripts.js: |
+    function hello(r) {
+        r.return(200, 'Hello world: ' +  njs.version );
+    }
+
+    export default {hello}
+
+---
+#Config Map for Nginx Config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-configxml-configmap
+  namespace: k8basics
+data:
+  nginx.conf: |
+    load_module modules/ngx_http_js_module.so;
+
+    user nginx;
+    worker_processes  1;
+    events {
+      worker_connections  10240;
+    }
+    http {
+      js_path "/etc/nginx/njs/";
+      js_import njscripts from scripts.js;
+      server {
+        listen       80;
+        server_name  localhost;
+        location /version {
+          js_content njscripts.hello;
+        }
+        location / {
+          root   /usr/share/nginx/html; #Change this line
+          index  index.html index.htm;
+        }
+      }
+    }
+
+---
+# Nginx service Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-static-contents-js
+  namespace: k8basics
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              scheme: HTTP
+              path: /index.html
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - name: nginx-configxml
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            - name: nginx-configjs
+              mountPath: /etc/nginx/njs/
+      volumes:
+        - name: nginx-configjs
+          configMap:
+            name: nginx-jsmodule-configmap
+        - name: nginx-configxml
+          configMap:
+            name: nginx-configxml-configmap
+            items:
+              - key: nginx.conf
+                path: nginx.conf
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-static-contents-js
+  namespace: k8basics
+  labels:
+    app: nginx-static-contents-js
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 38080
+  type: ClusterIP
+
+---
+# Ingress Controller config for GKE
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress-v1
+  namespace: k8basics
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    #kubernetes.io/ingress.global-static-ip-name: lb-ingress-0it-v1
+    #nginx.ingress.kubernetes.io/auth-url: "http://httpbin.default.svc.cluster.local/anything" # Always returns 200 OK
+    #nginx.ingress.kubernetes.io/auth-snippet: |
+    #  proxy_set_header X-Auth-User-Opa "$http_x_auth_user_opa";
+    #  error_page 418 = @log;
+    #  return 418;
+    #nginx.ingress.kubernetes.io/auth-http-method: POST
+  labels:
+    app: nginx-ingress-v1
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: app.localdev.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-static-contents-js
+                port:
+                  number: 38080
+          - path: /static
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: nginx-static-contents-js
+                port:
+                  number: 38080
+          - path: /blue
+            pathType: Prefix
+            backend:
+              service:
+                name: blue-service
+                port:
+                  number: 3382
+          - path: /green
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: green-service
+                port:
+                  number: 3383
+          - path: /anything
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: httpbin
+                port:
+                  number: 3381
+          - path: /anything/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: httpbin
+                port:
+                  number: 3381
