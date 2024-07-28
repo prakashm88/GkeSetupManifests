@@ -37,7 +37,8 @@ spec:
     app: httpbin
   ports:
     - protocol: TCP
-      port: 3381
+      port: 80
+      targetPort: 3381
 
 ---
 # blue pod
@@ -70,7 +71,9 @@ spec:
   selector:
     app: blue
   ports:
-    - port: 3382 # Default port for image
+    - protocol: TCP
+      port: 5678
+      targetPort: 3382
 
 ---
 # green pod
@@ -103,7 +106,9 @@ spec:
   selector:
     app: green
   ports:
-    - port: 3383 # Default port for image
+    - protocol: TCP
+      port: 5678
+      targetPort: 3383
 
 ---
 # Nginx Service for UI Code deployment
