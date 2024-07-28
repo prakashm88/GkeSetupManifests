@@ -9,4 +9,7 @@ RUN mkdir /etc/nginx/njs
 
 COPY njs/ /etc/nginx/njs
 
+RUN useradd -m -s /bin/bash itg-user
+RUN chown -R itg-user:itg-user /etc/nginx
+
 USER itg-user

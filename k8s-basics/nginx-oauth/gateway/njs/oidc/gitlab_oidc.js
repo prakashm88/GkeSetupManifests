@@ -112,6 +112,9 @@ function auth_request(r) {
 
 function validate(r) {
   const sessionId = r.headersIn["Cookie"].split("=")[1];
+  r.log("Validating session...");
+  const cookie = r.headersIn["Cookie"] || "";
+  const sessionId = cookie.split("=")[1];
 
   if (!sessionId || !sessions[sessionId]) {
     r.return(401, "Invalid session");
